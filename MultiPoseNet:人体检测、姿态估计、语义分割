@@ -1,0 +1,83 @@
+MultiPoseNet:人体检测、姿态估计、语义分割一“网”打尽
+原创： 52CV 我爱计算机视觉 2018-07-12
+又准又快还开源，恐怕没有比这个更好的事情了。
+
+来自中东科技大学在ECCV2018会议上已录用的文章“MultiPoseNet: Fast Multi-Person Pose Estimation using Pose Residual Network”，使用姿态残差网络Pose Residual Network (PRN)进行快速多人姿态估计。
+
+文中提出了一种新的自底向上（Bottom-Up）模式的多人姿势估计架构，它将多任务模型(multi-task model)与新颖的分配算法（assignment method）相结合。MultiPoseNet可以联合处理人体检测，关键点检测，人体分割和姿态估计问题。新颖的分配算法由姿态残差网络（PRN）实现，该网络接收关键点和人体检测的结果，通过将关键点分配给人体实例来产生准确的姿态。在COCO关键点数据集上，该姿态估计方法在准确性（比之前最好的结果要高4个点的mAP）和速度方面均优于所有之前的自下而上（Bottom-Up）方法; 它在准确性上也可以与最好的自顶向下（Top-Down）方法相媲美，但速度至少快4倍。MultiPoseNet方法是目前最快的实时姿态估计系统，在GTX1080TI显卡上速度是23帧/秒。
+
+
+
+多人姿态估计分为Bottom-Up方法和top-down方法两个方向。
+
+Bottom-Up方法 先检测图像中人体部件，然后将图像中多人人体的部件分别分配到不同的人体实例上，因此这类方法在测试推断的时候往往更快速,模型Size更小，但因为没能更细致的对人体关键点建模，所以往往准确度稍低。
+
+Top-Down方法 将人体检测和关键点检测分离，在图像上首先运行一个人体检测器，找到所有的人体实例，对每个人体子图再使用关键点检测，这类方法往往极其慢，但姿态估计准确度较高。
+
+
+
+MultiPoseNet多任务学习架构，同时高效地实现人体关键点检测、人体检测、语义分割：
+
+
+
+Pose Residual Network (PRN)姿态残差网络示意图，PRN网络用来分配每个关键点属于哪个人体
+
+
+
+特征提取用的骨干网络(Backbone)使用了带有两个Feature Pyramid Networks (FPN)的ResNet，一个输出到keypoint Estimation subnet，另一个输出到Person Detection Subnet。
+
+keypoint Estimation subnet示意图，它将层叠的CNN特征作为输入，然后输出关键点和语义分割热图（keypoint and segmentation heatmaps）
+
+
+
+Person Detection Subnet人体检测子网络直接使用了修改的RetinaNet，即仅让网络检测人体。
+
+
+
+Pose Residual Network (PRN)姿态残差网络是对每一个检测到的人体区域的关键点集合，学习从关键点集合到正常分布的关键点的映射。作者称这一步叫做残差校正（residual correction），文中使用残差多层感知机（residual multilayer perceptron）来实现。
+
+
+
+
+
+在COCO验证数据集上的精度-召回率曲线：
+
+
+
+COCO test-dev数据集上的结果，BU是Bottom-Up方法，TD是Top-Down方法
+
+
+
+使用不同的骨干网络性能比较
+
+
+
+不同的PRN模型（N:nodes, D: dropout and R: residual connection）在COCO validation上的实验结果，可以看到采用残差连接的模型性能大幅提高：
+
+
+
+COCO dataset上人体检测的结果，原RetinaNet模型有80类，因为处理后只有人体一类，所以性能大幅提高
+
+
+
+人体分割只是在关键点网络的输出层再加一层网络，所以时间代价很小，但已经达到DeepLab v2的水平
+
+
+
+COCO test-dev dataset上图片运行结果示例
+
+
+
+运行速度分析，模型参数量与随着人数增多检测时间变化
+
+
+
+
+
+在1080TI显卡上，Keypoint and person detections只需要35ms,因为PRN非常快，只需要2ms，所以每增加一个实例仅多增加2ms。当图片中仅有1个人运行27帧每秒，即使有20个人，也可以达到15帧每秒。
+
+整体上感觉这篇文章是更偏工程的，对这篇文章你有什么想法也欢迎留言。
+
+代码将在这里开源：
+
+https://github.com/mkocabas/pose-residual-network/
